@@ -10,6 +10,7 @@ services:
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: myduck-backup
       MINIO_SSL: "false"
+      SUPERUSER_PASSWORD: postgres
     depends_on:
       minio:
         condition: service_healthy
@@ -23,10 +24,10 @@ services:
       resources:
         limits:
           memory: 2G
-          cpus: '2'
+          cpus: "2"
         reservations:
           memory: 512M
-          cpus: '0.5'
+          cpus: "0.5"
 
   minio:
     image: pgsty/minio:latest
@@ -45,6 +46,13 @@ services:
       timeout: 5s
       retries: 5
     command: server /data --console-address :9001
+    networks:
+      - myduck-net
+
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+      - "3000:3000"
     networks:
       - myduck-net
 
