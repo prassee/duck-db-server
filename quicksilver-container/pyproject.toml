@@ -1,0 +1,12 @@
+[project]
+name = "quicksilver-container"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "faker>=40.13.0",
+    "polars>=1.39.3",
+    "psycopg[binary]>=3.3.3",
+    "typer>=0.24.1",
+]

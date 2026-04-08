@@ -2,8 +2,8 @@ services:
   myduck:
     image: apecloud/myduckserver:latest
     ports:
-      - "13306:3306"
-      - "15432:5432"
+      - "3306:3306"
+      - "5432:5432"
     environment:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -15,8 +15,18 @@ services:
         condition: service_healthy
     volumes:
       - .:/myduck
+      - ./parquet-data:/parquet-data
+      - ./init.sql:/docker-entrypoint-initdb.d/postgres/init.sql
     networks:
       - myduck-net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   minio:
     image: pgsty/minio:latest
