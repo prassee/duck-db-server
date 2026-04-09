@@ -98,10 +98,20 @@ def add_table_hot():
             # CREATE OR REPLACE TABLE nyc_taxi AS
             # SELECT * FROM read_parquet('s3://quicksilver/nyctaxi/*.parquet');
             # """)
-            # print("Created nyc table")
+            print("Created nyc table")
             cur.execute("""
             CREATE OR REPLACE TABLE nyc_taxi_hv AS
             SELECT * FROM read_parquet(['s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-01.parquet', 's3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-02.parquet']);""")
+            cur.execute("""checkpoint;""")
+            cur.execute("""
+            INSERT INTO nyc_taxi_hv
+            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-03.parquet');""")
+            cur.execute("""checkpoint;""")
+
+            cur.execute("""
+            INSERT INTO nyc_taxi_hv
+            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-04.parquet');""")
+            cur.execute("""checkpoint;""")
             print("Created nyc hv table")
 
             cur.execute(" CHECKPOINT;")
@@ -193,6 +203,18 @@ def drop_and_vacuum():
 
         cur.execute("DROP TABLE IF EXISTS users_hot;")
         print("Dropped users_hot table")
+        cur.execute("FORCE CHECKPOINT;")
+
+        # nyc_taxi
+        cur.execute("DROP TABLE IF EXISTS nyc_taxi;")
+        cur.execute("VACUUM;")
+        print("Dropped nyc_taxi table")
+        cur.execute("FORCE CHECKPOINT;")
+
+        # nyc_taxi_hv
+        cur.execute("DROP TABLE IF EXISTS nyc_taxi_hv;")
+        cur.execute("VACUUM;")
+        print("Dropped nyc_taxi_hv table")
         cur.execute("FORCE CHECKPOINT;")
 
         cur.execute("VACUUM;")
