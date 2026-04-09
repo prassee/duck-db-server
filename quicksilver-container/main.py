@@ -37,7 +37,7 @@ def get_conn():
         host="localhost",
         port=5432,
         user="postgres",
-        password="",
+        password="postgres",
         autocommit=True,
         connect_timeout=5,
     )
@@ -88,12 +88,22 @@ def add_table_hot():
     conn = get_conn()
     with conn.cursor() as cur:
         try:
+            # cur.execute("""
+            # CREATE OR REPLACE TABLE users_hot AS
+            # SELECT * FROM read_parquet('s3://quicksilver/usesrs/hot/*.parquet')
+            # ORDER BY id DESC;
+            # """)
+            # print("Created users_hot table")
+            # cur.execute("""
+            # CREATE OR REPLACE TABLE nyc_taxi AS
+            # SELECT * FROM read_parquet('s3://quicksilver/nyctaxi/*.parquet');
+            # """)
+            # print("Created nyc table")
             cur.execute("""
-            CREATE OR REPLACE TABLE users_hot AS
-            SELECT * FROM read_parquet('s3://quicksilver/usesrs/hot/*.parquet')
-            ORDER BY id DESC;
-            """)
-            print("Created users_hot table")
+            CREATE OR REPLACE TABLE nyc_taxi_hv AS
+            SELECT * FROM read_parquet(['s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-01.parquet', 's3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-02.parquet']);""")
+            print("Created nyc hv table")
+
             cur.execute(" CHECKPOINT;")
         except Exception as e:
             print(f"Error: {e}")
