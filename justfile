@@ -25,6 +25,9 @@ drop-vacuum:
 list-tables:
     cd quicksilver-container && uv run main.py list-all-tables
 
+add-nyc-taxi:
+    cd quicksilver-container && uv run main.py add-table-nyc-taxi
+
 add-hot:
     cd quicksilver-container && uv run main.py add-table-hot
 

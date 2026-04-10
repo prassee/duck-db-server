@@ -82,39 +82,55 @@ def export_to_parquet(
 
 
 @app.command()
-def add_table_hot():
-    """Create users_hot table from S3 parquet files"""
+def add_table_nyc_taxi():
+    """Create nyc_taxi table from S3 parquet files"""
     wait_for_server()
     conn = get_conn()
     with conn.cursor() as cur:
         try:
-            # cur.execute("""
-            # CREATE OR REPLACE TABLE users_hot AS
-            # SELECT * FROM read_parquet('s3://quicksilver/usesrs/hot/*.parquet')
-            # ORDER BY id DESC;
-            # """)
-            # print("Created users_hot table")
-            # cur.execute("""
-            # CREATE OR REPLACE TABLE nyc_taxi AS
-            # SELECT * FROM read_parquet('s3://quicksilver/nyctaxi/*.parquet');
-            # """)
-            print("Created nyc table")
+            cur.execute("SET memory_limit = '2GB';")
+            cur.execute("SET temp_directory = '/myduck/tmp/';")
+            cur.execute("SET preserve_insertion_order = false;")
             cur.execute("""
-            CREATE OR REPLACE TABLE nyc_taxi_hv AS
-            SELECT * FROM read_parquet(['s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-01.parquet', 's3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-02.parquet']);""")
-            cur.execute("""checkpoint;""")
-            cur.execute("""
-            INSERT INTO nyc_taxi_hv
-            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-03.parquet');""")
-            cur.execute("""checkpoint;""")
-
-            cur.execute("""
-            INSERT INTO nyc_taxi_hv
-            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-04.parquet');""")
-            cur.execute("""checkpoint;""")
-            print("Created nyc hv table")
-
+            CREATE OR REPLACE TABLE nyc_taxi AS
+            SELECT * FROM read_parquet('s3://quicksilver/nyctaxi/*.parquet');""")
+            print("Created nyc_taxi table")
             cur.execute(" CHECKPOINT;")
+        except Exception as e:
+            print(f"Error: {e}")
+            raise
+    print("Done")
+
+
+@app.command()
+def add_table_hot():
+    """Create users_hot table from S3 parquet files"""
+    wait_for_server()
+    conn = get_conn()
+    year = [2022, 2023, 2024]
+    month = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+    i_year = year[0]
+    i_month = month[10], month[11]
+    with conn.cursor() as cur:
+        try:
+            # print("Created nyc table")
+            # cur.execute("""
+            # CREATE OR REPLACE TABLE nyc_taxi_hv AS
+            # SELECT * FROM read_parquet(['s3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-01.parquet', 's3://quicksilver/nyctaxihv/fhvhv_tripdata_2024-02.parquet']);""")
+            # cur.execute("""checkpoint;""")
+            cur.execute("SET memory_limit = '2GB';")
+            cur.execute("SET temp_directory = '/myduck/tmp/';")
+            cur.execute("SET preserve_insertion_order = false;")
+            cur.execute(f"""
+            INSERT INTO nyc_taxi_hv
+            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[0]}.parquet');""")
+            cur.execute("""checkpoint;""")
+
+            cur.execute(f"""
+            INSERT INTO nyc_taxi_hv
+            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[1]}.parquet');""")
+            cur.execute("""checkpoint;""")
+
         except Exception as e:
             print(f"Error: {e}")
             raise
