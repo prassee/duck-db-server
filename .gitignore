@@ -2,3 +2,5 @@
 /minio
 /parquet-data
 /myduck-data
+.DS_Store
+/plugins

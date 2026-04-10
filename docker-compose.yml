@@ -1,32 +1,20 @@
 services:
-  myduck:
-    image: apecloud/myduckserver:latest
-    ports:
-      - "3306:3306"
-      - "5432:5432"
+  ducklake-catalog:
+    image: postgres:16-alpine
+    container_name: ducklake-catalog
     environment:
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: myduck-backup
-      MINIO_SSL: "false"
-      SUPERUSER_PASSWORD: postgres
-    depends_on:
-      minio:
-        condition: service_healthy
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ducklake_metadata
     volumes:
-      - ./myduck-data:/home/admin/data
-      - ./init.sql:/docker-entrypoint-initdb.d/postgres/init.sql
+      - pgdata:/var/lib/postgresql/data
     networks:
       - myduck-net
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "2"
-        reservations:
-          memory: 1G
-          cpus: "0.5"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: pgsty/minio:latest
@@ -49,12 +37,28 @@ services:
       - myduck-net
 
   metabase:
-    image: metabase/metabase:latest
+    build: .
+    depends_on:
+      ducklake-catalog:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      JAVA_OPTS: -Xmx3g -Xms1g
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ducklake
+      MB_DB_PORT: "5432"
+      MB_DB_USER: postgres
+      MB_DB_PASS: postgres
+      MB_DB_HOST: duckgres
     ports:
       - "3000:3000"
-    environment:
-      # Set Java Heap to ~75% of the container's limit
-      - JAVA_OPTS=-Xmx3g -Xms1g
+    volumes:
+      - ./plugins:/plugins
+      - ./metabase-data:/metabase-data
+    # tmpfs ensures DuckDB can extract native libraries to RAM without permission errors
+    tmpfs:
+      - /tmp:rw,mode=1777
     networks:
       - myduck-net
     deploy:
@@ -65,6 +69,8 @@ services:
 
 volumes:
   minio-data:
+  metabase-data:
+  pgdata:
 
 networks:
   myduck-net:
