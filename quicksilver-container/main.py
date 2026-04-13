@@ -26,8 +26,10 @@ Dependencies:
 """
 
 import time
-import typer
+
 import psycopg
+import typer
+from psycopg import sql
 
 app = typer.Typer()
 
@@ -121,58 +123,26 @@ def add_table_hot():
             cur.execute("SET memory_limit = '2GB';")
             cur.execute("SET temp_directory = '/myduck/tmp/';")
             cur.execute("SET preserve_insertion_order = false;")
-            cur.execute(f"""
-            INSERT INTO nyc_taxi_hv
-            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[0]}.parquet');""")
-            cur.execute("""checkpoint;""")
+            file_1 = f"s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[0]}.parquet"
+            cur.execute(
+                """
+                INSERT INTO nyc_taxi_hv
+                SELECT * FROM read_parquet(%s);
+                """,
+                (file_1,),
+            )
+            cur.execute("checkpoint;")
 
-            cur.execute(f"""
-            INSERT INTO nyc_taxi_hv
-            SELECT * FROM read_parquet('s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[1]}.parquet');""")
-            cur.execute("""checkpoint;""")
+            file_2 = f"s3://quicksilver/nyctaxihv/fhvhv_tripdata_{i_year}-{i_month[1]}.parquet"
+            cur.execute(
+                """
+                INSERT INTO nyc_taxi_hv
+                SELECT * FROM read_parquet(%s);
+                """,
+                (file_2,),
+            )
+            cur.execute("checkpoint;")
 
-        except Exception as e:
-            print(f"Error: {e}")
-            raise
-    print("Done")
-
-
-@app.command()
-def add_table_warm():
-    """Create users_warm view from S3 parquet files"""
-    wait_for_server()
-    conn = get_conn()
-    with conn.cursor() as cur:
-        try:
-            cur.execute("""
-            CREATE OR REPLACE VIEW users_warm AS
-            SELECT * FROM read_parquet('s3://quicksilver/usesrs/warm/*.parquet')
-            ORDER BY id DESC;
-            """)
-            print("Created users_warm view")
-            cur.execute(" CHECKPOINT;")
-        except Exception as e:
-            print(f"Error: {e}")
-            raise
-    print("Done")
-
-
-@app.command()
-def create_union_view():
-    """Create users view as union of users_hot and users_warm"""
-    wait_for_server()
-    conn = get_conn()
-    with conn.cursor() as cur:
-        try:
-            cur.execute("""
-            CREATE OR REPLACE VIEW users AS
-            SELECT * FROM users_hot
-            UNION ALL
-            SELECT * FROM users_warm
-            ORDER BY id DESC;
-            """)
-            print("Created users view")
-            cur.execute(" CHECKPOINT;")
         except Exception as e:
             print(f"Error: {e}")
             raise
@@ -204,37 +174,31 @@ def list_all_tables():
 
 
 @app.command()
-def drop_and_vacuum():
-    """Drop views and tables, then vacuum the database"""
+def drop_and_vacuum(
+    object_type: str = typer.Argument(..., help="Object type: table or view"),
+    name: str = typer.Argument(..., help="Object name"),
+):
+    """Drop one table/view by name, then vacuum and checkpoint."""
+    obj = object_type.strip().lower()
+    if obj not in {"table", "view"}:
+        raise typer.BadParameter("object_type must be 'table' or 'view'")
+
     wait_for_server()
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute("DROP VIEW IF EXISTS users;")
-        print("Dropped users view")
-        cur.execute("FORCE CHECKPOINT;")
-
-        cur.execute("DROP VIEW IF EXISTS users_warm;")
-        print("Dropped users_warm view")
-        cur.execute("FORCE CHECKPOINT;")
-
-        cur.execute("DROP TABLE IF EXISTS users_hot;")
-        print("Dropped users_hot table")
-        cur.execute("FORCE CHECKPOINT;")
-
-        # nyc_taxi
-        cur.execute("DROP TABLE IF EXISTS nyc_taxi;")
-        cur.execute("VACUUM;")
-        print("Dropped nyc_taxi table")
-        cur.execute("FORCE CHECKPOINT;")
-
-        # nyc_taxi_hv
-        cur.execute("DROP TABLE IF EXISTS nyc_taxi_hv;")
-        cur.execute("VACUUM;")
-        print("Dropped nyc_taxi_hv table")
-        cur.execute("FORCE CHECKPOINT;")
+        drop_stmt = sql.SQL("DROP {} IF EXISTS {};").format(
+            sql.SQL("TABLE" if obj == "table" else "VIEW"),
+            sql.Identifier(name),
+        )
+        cur.execute(drop_stmt)
+        print(f"Dropped {obj} {name}")
 
         cur.execute("VACUUM;")
         print("Vacuum completed")
+
+        cur.execute("FORCE CHECKPOINT;")
+        print("Checkpoint completed")
+
     print("Done")
 
 
