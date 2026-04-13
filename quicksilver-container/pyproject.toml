@@ -8,5 +8,6 @@ dependencies = [
     "faker>=40.13.0",
     "polars>=1.39.3",
     "psycopg[binary]>=3.3.3",
+    "requests>=2.32.0",
     "typer>=0.24.1",
 ]

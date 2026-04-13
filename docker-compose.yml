@@ -11,7 +11,7 @@ services:
     networks:
       - myduck-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
       - minio-data:/data
       - .:/minio
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,21 +44,22 @@ services:
       minio:
         condition: service_healthy
     environment:
-      JAVA_OPTS: -Xmx3g -Xms1g
-      MB_DB_TYPE: postgres
-      MB_DB_DBNAME: ducklake
-      MB_DB_PORT: "5432"
-      MB_DB_USER: postgres
-      MB_DB_PASS: postgres
-      MB_DB_HOST: duckgres
+      JAVA_TOOL_OPTIONS: -Xmx3g -Xms1g
+      # Metabase internal app DB — H2 file stored in the bind-mounted directory
+      MB_DB_TYPE: h2
+      MB_DB_FILE: /metabase-data/metabase.db
+      # DuckDB community driver location
+      MB_PLUGINS_DIR: /plugins
     ports:
       - "3000:3000"
     volumes:
       - ./plugins:/plugins
-      - ./metabase-data:/metabase-data
-    # tmpfs ensures DuckDB can extract native libraries to RAM without permission errors
+      - metabase-data:/metabase-data
+      - duckdb-data:/duckdb-data
+      - ./duckgres-data/extensions:/root/.duckdb/extensions:ro
+    # tmpfs with exec allows DuckDB to extract and load its native .so library
     tmpfs:
-      - /tmp:rw,mode=1777
+      - /tmp:rw,exec,mode=1777
     networks:
       - myduck-net
     deploy:
@@ -69,8 +70,10 @@ services:
 
 volumes:
   minio-data:
-  metabase-data:
   pgdata:
+  metabase-data:
+  duckdb-data:
+
 
 networks:
   myduck-net:
