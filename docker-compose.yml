@@ -42,5 +42,19 @@ services:
       create-bucket:
         condition: service_completed_successfully
 
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: h2
+    volumes:
+      - metabase_data:/metabase-data
+    depends_on:
+      cube:
+        condition: service_started
+
 volumes:
   minio_data:
+  metabase_data:
