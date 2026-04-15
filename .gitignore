@@ -3,3 +3,6 @@
 /parquet-data
 /myduck-data
 /duckgres-data
+**/.cubestore
+/duckdb
+/plugins

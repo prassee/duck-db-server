@@ -39,3 +39,6 @@ create-union:
 
 export-parquet:
     cd quicksilver-container && uv run main.py export-to-parquet
+
+create-orders:
+    cd quicksilver-container && uv run main.py create-orders-table

@@ -84,6 +84,102 @@ def export_to_parquet(
 
 
 @app.command()
+def create_orders_table(
+    row_count: int = typer.Option(
+        1000, "--rows", "-r", help="Number of rows to generate"
+    ),
+):
+    """Create orders table with synthetic data in duckdb"""
+    import faker
+    import uuid
+    from datetime import datetime, timedelta
+    import random
+    import duckdb
+
+    fake = faker.Faker()
+    output_path = "../duckdb/orders.db"
+
+    print(f"Generating {row_count:,} orders...")
+    conn = duckdb.connect(output_path)
+
+    conn.execute("DROP TABLE IF EXISTS orders")
+
+    conn.execute("""
+    CREATE TABLE orders (
+        order_id VARCHAR PRIMARY KEY,
+        customer_name VARCHAR,
+        customer_email VARCHAR,
+        product_name VARCHAR,
+        product_category VARCHAR,
+        quantity INTEGER,
+        unit_price DECIMAL(10,2),
+        total_amount DECIMAL(10,2),
+        order_status VARCHAR,
+        order_date DATE,
+        delivery_date DATE,
+        shipping_address VARCHAR,
+        payment_method VARCHAR
+    )
+    """)
+
+    categories = [
+        "Electronics",
+        "Clothing",
+        "Home & Garden",
+        "Sports",
+        "Books",
+        "Toys",
+        "Food",
+        "Beauty",
+    ]
+    statuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
+    payment_methods = ["credit_card", "debit_card", "paypal", "bank_transfer", "cash"]
+
+    batch_size = 50000
+    for batch in range(0, row_count, batch_size):
+        batch_end = min(batch + batch_size, row_count)
+        data = []
+        for i in range(batch, batch_end):
+            qty = random.randint(1, 10)
+            unit_price = round(random.uniform(10, 1000), 2)
+            total = round(qty * unit_price, 2)
+            order_date = datetime.now() - timedelta(days=random.randint(0, 365))
+            delivery_date = order_date + timedelta(days=random.randint(1, 14))
+
+            data.append(
+                (
+                    str(uuid.uuid4()),
+                    fake.name(),
+                    fake.email(),
+                    fake.catch_phrase()[:100],
+                    random.choice(categories),
+                    qty,
+                    unit_price,
+                    total,
+                    random.choice(statuses),
+                    order_date.date(),
+                    delivery_date.date(),
+                    fake.address().replace("\n", ", ")[:200],
+                    random.choice(payment_methods),
+                )
+            )
+
+        conn.executemany(
+            "INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            data,
+        )
+
+        print(f"  Inserted {batch_end:,}/{row_count:,} rows...")
+
+    conn.execute("CREATE INDEX idx_order_date ON orders(order_date)")
+    conn.execute("CREATE INDEX idx_customer_email ON orders(customer_email)")
+    conn.execute("CREATE INDEX idx_product_category ON orders(product_category)")
+
+    conn.close()
+    print(f"Created orders table with {row_count:,} rows in {output_path}")
+
+
+@app.command()
 def add_table_nyc_taxi():
     """Create nyc_taxi table from S3 parquet files"""
     wait_for_server()

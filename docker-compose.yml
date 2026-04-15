@@ -1,70 +1,46 @@
 services:
-  myduck:
-    image: apecloud/myduckserver:latest
-    ports:
-      - "3306:3306"
-      - "5432:5432"
-    environment:
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: myduck-backup
-      MINIO_SSL: "false"
-      SUPERUSER_PASSWORD: postgres
-    depends_on:
-      minio:
-        condition: service_healthy
-    volumes:
-      - ./myduck-data:/home/admin/data
-      - ./init.sql:/docker-entrypoint-initdb.d/postgres/init.sql
-    networks:
-      - myduck-net
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "2"
-        reservations:
-          memory: 1G
-          cpus: "0.5"
-
   minio:
-    image: pgsty/minio:latest
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
     ports:
       - "9000:9000"
       - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - minio-data:/data
-      - .:/minio
+      - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 5s
       timeout: 5s
       retries: 5
-    command: server /data --console-address :9001
-    networks:
-      - myduck-net
 
-  metabase:
-    image: metabase/metabase:latest
+  create-bucket:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " mc alias set local http://minio:9000 admin password; mc mb -p local/warehouse; exit 0; "
+
+  cube:
+    image: cubejs/cube:latest
+    container_name: cube
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
-      # Set Java Heap to ~75% of the container's limit
-      - JAVA_OPTS=-Xmx3g -Xms1g
-    networks:
-      - myduck-net
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "2"
+      CUBEJS_DEV_MODE: "true"
+      CUBEJS_DB_TYPE: "duckdb"
+      CUBEJS_DB_DUCKDB_DATABASE_PATH: "/duckdb/orders.db"
+      # cube.js driverFactory reads this path and bootstraps the schema on startup
+    volumes:
+      - ./cube:/cube/conf # mounts cube/cube.js as /cube/conf/cube.js
+      - ./duckdb:/duckdb
+    depends_on:
+      create-bucket:
+        condition: service_completed_successfully
 
 volumes:
-  minio-data:
-
-networks:
-  myduck-net:
+  minio_data:
