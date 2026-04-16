@@ -86,14 +86,16 @@ def export_to_parquet(
 @app.command()
 def create_orders_table(
     row_count: int = typer.Option(
-        1000, "--rows", "-r", help="Number of rows to generate"
+        500000, "--rows", "-r", help="Number of rows to generate"
     ),
 ):
     """Create orders table with synthetic data in duckdb"""
-    import faker
+    import random
     import uuid
     from datetime import datetime, timedelta
-    import random
+
+    import faker
+
     import duckdb
 
     fake = faker.Faker()
@@ -135,7 +137,7 @@ def create_orders_table(
     statuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
     payment_methods = ["credit_card", "debit_card", "paypal", "bank_transfer", "cash"]
 
-    batch_size = 50000
+    batch_size = 100000
     for batch in range(0, row_count, batch_size):
         batch_end = min(batch + batch_size, row_count)
         data = []
@@ -177,6 +179,41 @@ def create_orders_table(
 
     conn.close()
     print(f"Created orders table with {row_count:,} rows in {output_path}")
+
+
+@app.command()
+def create_nyc_taxi_view():
+    """Create nyc_taxi_rides VIEW in ../duckdb/nyc_taxi.db pointing to S3/MinIO parquet files"""
+    import duckdb
+
+    output_path = "../duckdb/nyc_taxi.db"
+    s3_endpoint = "localhost:9000"
+    s3_access_key = "admin"
+    s3_secret_key = "password"
+    s3_path = "s3://nyc-taxi/*.parquet"
+
+    print(f"Creating nyc_taxi_rides view in {output_path} → {s3_path}")
+    conn = duckdb.connect(output_path)
+
+    conn.execute("INSTALL httpfs; LOAD httpfs;")
+    conn.execute(f"""
+        CREATE SECRET IF NOT EXISTS minio_secret (
+            TYPE s3,
+            KEY_ID '{s3_access_key}',
+            SECRET '{s3_secret_key}',
+            ENDPOINT '{s3_endpoint}',
+            URL_STYLE 'path',
+            USE_SSL false
+        );
+    """)
+
+    conn.execute(f"""
+        CREATE OR REPLACE VIEW nyc_taxi_rides AS
+        SELECT * FROM read_parquet('{s3_path}');
+    """)
+
+    conn.close()
+    print("Done — nyc_taxi_rides view created")
 
 
 @app.command()
