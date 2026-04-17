@@ -9,6 +9,7 @@ if [ ! -f /duckdb/orders.db ]; then
 else
     echo "==> [quicksilver] orders.db already exists, skipping seed."
 fi
+python3 main.py create-nyc-taxi-view
 
 echo "==> [cube] Starting Cube.js server..."
 exec cubejs server
