@@ -86,7 +86,7 @@ def export_to_parquet(
 @app.command()
 def create_orders_table(
     row_count: int = typer.Option(
-        500000, "--rows", "-r", help="Number of rows to generate"
+        5000, "--rows", "-r", help="Number of rows to generate"
     ),
 ):
     """Create orders table with synthetic data in duckdb"""

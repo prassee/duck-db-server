@@ -6,3 +6,4 @@
 **/.cubestore
 /duckdb
 /plugins
+/metabase-data
