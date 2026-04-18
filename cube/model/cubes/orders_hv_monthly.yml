@@ -1,0 +1,69 @@
+cubes:
+  - name: orders_hv_monthly
+    sql_table: main.orders_hv
+    data_source: default
+
+    joins: []
+
+    dimensions:
+      - name: order_month
+        sql: DATE_TRUNC('month', order_date)
+        type: time
+        primaryKey: true
+
+      - name: product_category
+        sql: product_category
+        type: string
+
+      - name: product_sub_category
+        sql: product_sub_category
+        type: string
+
+      - name: order_status
+        sql: order_status
+        type: string
+
+      - name: payment_method
+        sql: payment_method
+        type: string
+
+      - name: payment_sub_type
+        sql: payment_sub_type
+        type: string
+
+    measures:
+      - name: count
+        type: count
+
+      - name: total_quantity
+        sql: "CAST(quantity AS BIGINT)"
+        type: sum
+
+      - name: total_revenue
+        sql: "CAST(quantity AS BIGINT) * total_amount"
+        type: sum
+
+      - name: avg_order_value
+        sql: "CAST(quantity AS BIGINT) * total_amount"
+        type: avg
+
+      - name: unique_customers
+        sql: customer_email
+        type: count_distinct
+
+    pre_aggregations:
+      - name: monthly_rollup
+        measures:
+          - count
+          - total_quantity
+          - total_revenue
+          - avg_order_value
+          - unique_customers
+        dimensions:
+          - product_category
+          - product_sub_category
+          - order_status
+          - payment_method
+          - payment_sub_type
+        time_dimension: order_month
+        granularity: month

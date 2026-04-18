@@ -32,6 +32,7 @@ services:
     container_name: quicksilver-cube
     ports:
       - "4000:4000"
+      - "15432:15432"
     environment:
       CUBEJS_DEV_MODE: "true"
       CUBEJS_DB_TYPE: "duckdb"
@@ -42,6 +43,8 @@ services:
     volumes:
       - ./duckdb:/duckdb # shared between quicksilver (write) and cube (read)
       - ./parquet-data:/parquet-data
+      - ./cube:/cube/conf # live cube config + model files (no rebuild needed for model changes)
+      - ./cubestore-data:/cube/conf/.cubestore # persist pre-aggregations across restarts
     depends_on:
       create-bucket:
         condition: service_completed_successfully

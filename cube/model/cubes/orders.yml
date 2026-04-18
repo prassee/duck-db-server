@@ -1,6 +1,6 @@
 cubes:
-  - name: orders
-    sql_table: main.orders
+  - name: orders_hv
+    sql_table: main.orders_hv
     data_source: default
 
     joins: []
@@ -17,6 +17,7 @@ cubes:
       - name: order_id
         sql: order_id
         type: string
+        primaryKey: true
 
       - name: order_status
         sql: order_status
@@ -26,8 +27,16 @@ cubes:
         sql: payment_method
         type: string
 
+      - name: payment_sub_type
+        sql: payment_sub_type
+        type: string
+
       - name: product_category
         sql: product_category
+        type: string
+
+      - name: product_sub_category
+        sql: product_sub_category
         type: string
 
       - name: product_name
